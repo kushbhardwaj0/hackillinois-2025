@@ -29,7 +29,7 @@ def file_extractor():
     return text, args.filename
 
 def testcase_generator(text, filename):
-    genai.configure(api_key="AIzaSyB4oJ20j07Y8PHBSU0WFqpTJmY-QJKl88M")
+    genai.configure(api_key="")
     generation_config = genai.types.GenerationConfig(temperature=0.1)
     
     if filename.endswith('.py'):
