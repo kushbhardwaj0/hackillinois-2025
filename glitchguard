@@ -64,7 +64,7 @@ def file_extractor():
 
 # Uses the Gemini AI API to generate test cases for the given code.
 def testcase_generator(text, filename):
-    genai.configure(api_key="AIzaSyB4oJ20j07Y8PHBSU0WFqpTJmY-QJKl88M")
+    genai.configure(api_key="")
     # Set generation parameters to keep output consistent and useful.
     generation_config = genai.types.GenerationConfig(temperature=0.1)
     if filename.endswith('.py'):
