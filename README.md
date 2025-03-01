@@ -28,7 +28,8 @@ cd glitchguard
 Ensure you have **Python 3+** and `pip` installed.
 
 ```bash
-pip install -r requirements.txt
+pip install pytest
+pip install google-generativeai
 ```
 
 For **C++ testing**, install Catch2:

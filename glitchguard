@@ -5,8 +5,9 @@ import os
 import shutil
 import google.generativeai as genai
 
+# a big problem with the gemini output is it starts and ends the code with 
+# a "```". this fucntion removes it 
 def remove_triple_backticks(filename):
-    """Removes any line that contains triple backticks (```)."""
     try:
         with open(filename, "r") as file:
             lines = file.readlines()
@@ -16,6 +17,8 @@ def remove_triple_backticks(filename):
     except Exception as e:
         print(f"Error processing {filename}: {e}")
 
+# this function takes the argument that the user gave in the command line, 
+# opens it, stores the code in a string so the next function can send it to gemini
 def file_extractor():
     parser = argparse.ArgumentParser(prog="glitchguard", description="Process a file for testing")
     parser.add_argument("filename", help="Name of the file to process")
@@ -28,10 +31,11 @@ def file_extractor():
         exit(1)
     return text, args.filename
 
+# sends the code to gemini api to create testcases
 def testcase_generator(text, filename):
-    genai.configure(api_key="AIzaSyB4oJ20j07Y8PHBSU0WFqpTJmY-QJKl88M")
+    genai.configure(api_key="")
     generation_config = genai.types.GenerationConfig(temperature=0.1)
-    
+    # for python files
     if filename.endswith('.py'):
         model = genai.GenerativeModel(
             model_name="gemini-1.5-pro",
@@ -43,6 +47,7 @@ def testcase_generator(text, filename):
             "also include the main method that runs all the test cases. the only import you should put is 'pytest' "
             "- i will put the other imports in myself. DONT PUT COMMENTS IN THE CODE: " + text
         )
+    # for c++ files
     elif filename.endswith('.cpp'):
         model = genai.GenerativeModel(
             model_name="gemini-1.5-pro",
@@ -55,16 +60,19 @@ def testcase_generator(text, filename):
             "'#define CATCH_CONFIG_MAIN\\n#include <catch2/catch_test_macros.hpp>' - i will put the other includes in myself. "
             "DONT PUT COMMENTS IN THE CODE: " + text
         )
+    # HOPEFULLY COMING SOON - MORE LANGUAGE SUPPORT
     else:
         print("Unsupported file type. Only .py and .cpp files are supported.")
         exit(1)
         
+    # stores the output code testcases, remove the "```" and returns it as a string
     response = model.generate_content(prompt)
     output_text = response.text
     lines = output_text.split("\n")
     new_text = "\n".join([line for line in lines if "```" not in line])
     return new_text
 
+# programatically write the CMakeLists.txt file to compile test_run.cpp
 def setup_cpp_build_files():
     # Overwrite CMakeLists.txt to only compile test_run.cpp
     cmake_content = r"""cmake_minimum_required(VERSION 3.14)
@@ -91,7 +99,7 @@ target_link_libraries(tests PRIVATE Catch2::Catch2WithMain)
     except Exception as e:
         print(f"Error creating CMakeLists.txt: {e}")
 
-    # Overwrite Makefile.
+    # Overwrite Makefile in case there is already something in there
     makefile_content = r"""all:
 	cmake -S . -B build
 	cmake --build build
@@ -99,6 +107,7 @@ target_link_libraries(tests PRIVATE Catch2::Catch2WithMain)
 clean:
 	rm -rf build
 """
+    # write the makefile
     try:
         with open("Makefile", "w") as f:
             f.write(makefile_content)
@@ -107,6 +116,7 @@ clean:
         print(f"Error creating Makefile: {e}")
 
 def build_and_run_cpp_tests():
+    # creates the build directory
     if os.path.exists("build"):
         try:
             shutil.rmtree("build")
@@ -114,12 +124,14 @@ def build_and_run_cpp_tests():
         except Exception as e:
             print(f"Error removing old build directory: {e}")
     print("Building tests using Makefile...")
+    # building tests using the makefile
     build_result = subprocess.run(["make"], capture_output=True, text=True)
     if build_result.returncode != 0:
         print(f"Build error: {build_result.stderr}")
         return
     print("Build successful.")
     print("Running compiled tests...")
+    # running the testfile
     run_result = subprocess.run(["./build/tests"], capture_output=True, text=True)
     if run_result.returncode != 0:
         print(f"Error running tests: {run_result.stderr}")
@@ -128,13 +140,17 @@ def build_and_run_cpp_tests():
         print("Tests executed successfully.")
 
 def create_test_file(content, original_filename):
+    # if the given filename is a python file: 
     if original_filename.endswith('.py'):
         test_filename = "test_run.py"
         module_name = original_filename.replace('/', '.')
+        # imports the original file into the testcase so that the 
+        # testfile can access the functions to test
         if module_name.endswith('.py'):
             module_name = module_name[:-3]
         content = f"from {module_name} import *\n" + content
         try:
+            # creates and runs the testfile
             with open(test_filename, "w") as file:
                 file.write(content)
             remove_triple_backticks(test_filename)
@@ -148,11 +164,13 @@ def create_test_file(content, original_filename):
                 print(f"'{test_filename}' executed successfully.")
         except Exception as e:
             print(f"Error: {e}")
+    # if the code is in c++: 
     elif original_filename.endswith('.cpp'):
         test_filename = "test_run.cpp"
-        # Include the implementation header (i.e. codefile.cpp) within the test file.
+        # include the implementation header within the test file.
         content = f'#define CATCH_CONFIG_MAIN\n#include <catch2/catch_test_macros.hpp>\n#include "codefile.cpp"\n' + content
         try:
+            # runs the external functions
             with open(test_filename, "w") as file:
                 file.write(content)
             remove_triple_backticks(test_filename)
