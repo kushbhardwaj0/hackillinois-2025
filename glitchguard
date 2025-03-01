@@ -41,7 +41,7 @@ def create_test_file(content, module_name, filename="test_run.py"):
 
 def testcase_generator(text):
 
-    genai.configure(api_key=API_KEY)
+    genai.configure(api_key="API_KEY")
     
     generation_config = genai.types.GenerationConfig(
         temperature=0.1,
