@@ -1017,4 +1017,6 @@ CMakeFiles/tests.dir/test_run.cpp.o: \
   /Users/kushb/Downloads/hackillinois-2025/build/_deps/catch2-src/src/catch2/../catch2/internal/catch_test_registry.hpp \
   /Users/kushb/Downloads/hackillinois-2025/build/_deps/catch2-src/src/catch2/../catch2/interfaces/catch_interfaces_test_invoker.hpp \
   /Users/kushb/Downloads/hackillinois-2025/build/_deps/catch2-src/src/catch2/../catch2/internal/catch_preprocessor_remove_parens.hpp \
-  /Users/kushb/Downloads/hackillinois-2025/codefile.cpp
+  /Users/kushb/Downloads/hackillinois-2025/codefile.cpp \
+  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.2.sdk/usr/include/c++/v1/iostream \
+  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.2.sdk/usr/include/c++/v1/istream

@@ -5,20 +5,51 @@ import os
 import shutil
 import google.generativeai as genai
 
-# a big problem with the gemini output is it starts and ends the code with 
-# a "```". this fucntion removes it 
+# Function to remove all occurrences of triple backticks (```) from a file.
+# This is necessary because Gemini sometimes outputs code wrapped in backticks (```).
 def remove_triple_backticks(filename):
     try:
         with open(filename, "r") as file:
-            lines = file.readlines()
-        filtered_lines = [line for line in lines if "```" not in line]
+            content = file.read()
+        # Remove all occurrences of triple backticks
+        content = content.replace("```", "")
         with open(filename, "w") as file:
-            file.writelines(filtered_lines)
+            file.write(content)
     except Exception as e:
         print(f"Error processing {filename}: {e}")
 
-# this function takes the argument that the user gave in the command line, 
-# opens it, stores the code in a string so the next function can send it to gemini
+# Function to remove duplicate occurrences of specific `#define` and `#include` statements.
+# Prevents redundant `#define CATCH_CONFIG_MAIN` and Catch2 includes in generated test files.
+def remove_duplicate_includes(filename):
+    """Remove duplicate occurrences of specific include lines."""
+    try:
+        with open(filename, "r") as file:
+            lines = file.readlines()
+        seen_define = False
+        seen_include = False
+        new_lines = []
+        for line in lines:
+            stripped = line.strip()
+            if stripped == "#define CATCH_CONFIG_MAIN":
+                if not seen_define:
+                    new_lines.append(line)
+                    seen_define = True
+                else:
+                    continue
+            elif stripped == "#include <catch2/catch_test_macros.hpp>":
+                if not seen_include:
+                    new_lines.append(line)
+                    seen_include = True
+                else:
+                    continue
+            else:
+                new_lines.append(line)
+        with open(filename, "w") as file:
+            file.write("".join(new_lines))
+    except Exception as e:
+        print(f"Error processing duplicate includes in {filename}: {e}")
+
+# Extracts the filename provided via command-line arguments and reads its contents.
 def file_extractor():
     parser = argparse.ArgumentParser(prog="glitchguard", description="Process a file for testing")
     parser.add_argument("filename", help="Name of the file to process")
@@ -31,11 +62,11 @@ def file_extractor():
         exit(1)
     return text, args.filename
 
-# sends the code to gemini api to create testcases
+# Uses the Gemini AI API to generate test cases for the given code.
 def testcase_generator(text, filename):
-    genai.configure(api_key="")
+    genai.configure(api_key="AIzaSyB4oJ20j07Y8PHBSU0WFqpTJmY-QJKl88M")
+    # Set generation parameters to keep output consistent and useful.
     generation_config = genai.types.GenerationConfig(temperature=0.1)
-    # for python files
     if filename.endswith('.py'):
         model = genai.GenerativeModel(
             model_name="gemini-1.5-pro",
@@ -47,7 +78,6 @@ def testcase_generator(text, filename):
             "also include the main method that runs all the test cases. the only import you should put is 'pytest' "
             "- i will put the other imports in myself. DONT PUT COMMENTS IN THE CODE: " + text
         )
-    # for c++ files
     elif filename.endswith('.cpp'):
         model = genai.GenerativeModel(
             model_name="gemini-1.5-pro",
@@ -58,23 +88,22 @@ def testcase_generator(text, filename):
             "just give code for testcases and no further text/explanation/code comments. "
             "also include the main method that runs all the test cases. the only include you should put is "
             "'#define CATCH_CONFIG_MAIN\\n#include <catch2/catch_test_macros.hpp>' - i will put the other includes in myself. "
-            "DONT PUT COMMENTS IN THE CODE: " + text
+            "DONT PUT COMMENTS IN THE CODE and make sure there are no bugs in the code you give me: " + text
         )
-    # HOPEFULLY COMING SOON - MORE LANGUAGE SUPPORT
     else:
         print("Unsupported file type. Only .py and .cpp files are supported.")
         exit(1)
-        
-    # stores the output code testcases, remove the "```" and returns it as a string
+    # Generate the response from Gemini AI.
     response = model.generate_content(prompt)
     output_text = response.text
+
+    # Remove any triple backticks from generated test cases.
     lines = output_text.split("\n")
     new_text = "\n".join([line for line in lines if "```" not in line])
     return new_text
 
-# programatically write the CMakeLists.txt file to compile test_run.cpp
+# Generates CMakeLists.txt and Makefile for compiling and running Catch2 C++ tests.
 def setup_cpp_build_files():
-    # Overwrite CMakeLists.txt to only compile test_run.cpp
     cmake_content = r"""cmake_minimum_required(VERSION 3.14)
 project(GlitchGuardTests LANGUAGES CXX)
 
@@ -95,11 +124,8 @@ target_link_libraries(tests PRIVATE Catch2::Catch2WithMain)
     try:
         with open("CMakeLists.txt", "w") as f:
             f.write(cmake_content)
-        print("CMakeLists.txt created successfully (overwritten).")
     except Exception as e:
         print(f"Error creating CMakeLists.txt: {e}")
-
-    # Overwrite Makefile in case there is already something in there
     makefile_content = r"""all:
 	cmake -S . -B build
 	cmake --build build
@@ -107,79 +133,65 @@ target_link_libraries(tests PRIVATE Catch2::Catch2WithMain)
 clean:
 	rm -rf build
 """
-    # write the makefile
     try:
         with open("Makefile", "w") as f:
             f.write(makefile_content)
-        print("Makefile created successfully (overwritten).")
     except Exception as e:
         print(f"Error creating Makefile: {e}")
 
+# Compiles and runs Catch2 C++ tests using the Makefile.
 def build_and_run_cpp_tests():
-    # creates the build directory
     if os.path.exists("build"):
         try:
             shutil.rmtree("build")
-            print("Old build directory removed.")
         except Exception as e:
             print(f"Error removing old build directory: {e}")
-    print("Building tests using Makefile...")
-    # building tests using the makefile
+    # Run `make` to build the tests.
     build_result = subprocess.run(["make"], capture_output=True, text=True)
     if build_result.returncode != 0:
         print(f"Build error: {build_result.stderr}")
         return
-    print("Build successful.")
+    # Run the compiled tests.
     print("Running compiled tests...")
-    # running the testfile
     run_result = subprocess.run(["./build/tests"], capture_output=True, text=True)
     if run_result.returncode != 0:
         print(f"Error running tests: {run_result.stderr}")
     else:
         print(run_result.stdout)
-        print("Tests executed successfully.")
 
+# Creates and writes the test file for the given code.
 def create_test_file(content, original_filename):
-    # if the given filename is a python file: 
     if original_filename.endswith('.py'):
         test_filename = "test_run.py"
         module_name = original_filename.replace('/', '.')
-        # imports the original file into the testcase so that the 
-        # testfile can access the functions to test
         if module_name.endswith('.py'):
             module_name = module_name[:-3]
         content = f"from {module_name} import *\n" + content
         try:
-            # creates and runs the testfile
             with open(test_filename, "w") as file:
                 file.write(content)
             remove_triple_backticks(test_filename)
-            print(f"File '{test_filename}' created successfully.")
-            print(f"Running '{test_filename}'...")
             result = subprocess.run(["python3", test_filename], capture_output=True, text=True)
             print(result.stdout)
             if result.returncode != 0:
                 print(f"Error running '{test_filename}': {result.stderr}")
-            else:
-                print(f"'{test_filename}' executed successfully.")
         except Exception as e:
             print(f"Error: {e}")
-    # if the code is in c++: 
     elif original_filename.endswith('.cpp'):
         test_filename = "test_run.cpp"
-        # include the implementation header within the test file.
         content = f'#define CATCH_CONFIG_MAIN\n#include <catch2/catch_test_macros.hpp>\n#include "codefile.cpp"\n' + content
         try:
-            # runs the external functions
             with open(test_filename, "w") as file:
                 file.write(content)
             remove_triple_backticks(test_filename)
-            print(f"File '{test_filename}' created successfully.")
+            # Remove duplicate include lines from test_run.cpp
+            remove_duplicate_includes(test_filename)
             setup_cpp_build_files()
             build_and_run_cpp_tests()
         except Exception as e:
             print(f"Error: {e}")
 
+# Main function that extracts code, generates test cases, and creates test files.
 def main():
     text, filename = file_extractor()
     testcase_text = testcase_generator(text, filename)
