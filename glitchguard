@@ -78,6 +78,7 @@ def testcase_generator(text, filename):
             "also include the main method that runs all the test cases. the only import you should put is 'pytest' "
             "- i will put the other imports in myself. DONT PUT COMMENTS IN THE CODE: " + text
         )
+    # for c++ files
     elif filename.endswith('.cpp'):
         model = genai.GenerativeModel(
             model_name="gemini-1.5-pro",
@@ -90,6 +91,7 @@ def testcase_generator(text, filename):
             "'#define CATCH_CONFIG_MAIN\\n#include <catch2/catch_test_macros.hpp>' - i will put the other includes in myself. "
             "DONT PUT COMMENTS IN THE CODE and make sure there are no bugs in the code you give me: " + text
         )
+    # HOPEFULLY COMING SOON - MORE LANGUAGE SUPPORT
     else:
         print("Unsupported file type. Only .py and .cpp files are supported.")
         exit(1)
@@ -133,6 +135,7 @@ target_link_libraries(tests PRIVATE Catch2::Catch2WithMain)
 clean:
 	rm -rf build
 """
+    # write the makefile
     try:
         with open("Makefile", "w") as f:
             f.write(makefile_content)
@@ -141,6 +144,7 @@ clean:
 
 # Compiles and runs Catch2 C++ tests using the Makefile.
 def build_and_run_cpp_tests():
+    # creates the build directory
     if os.path.exists("build"):
         try:
             shutil.rmtree("build")
@@ -153,6 +157,7 @@ def build_and_run_cpp_tests():
         return
     # Run the compiled tests.
     print("Running compiled tests...")
+    # running the testfile
     run_result = subprocess.run(["./build/tests"], capture_output=True, text=True)
     if run_result.returncode != 0:
         print(f"Error running tests: {run_result.stderr}")
@@ -161,13 +166,17 @@ def build_and_run_cpp_tests():
 
 # Creates and writes the test file for the given code.
 def create_test_file(content, original_filename):
+    # if the given filename is a python file: 
     if original_filename.endswith('.py'):
         test_filename = "test_run.py"
         module_name = original_filename.replace('/', '.')
+        # imports the original file into the testcase so that the 
+        # testfile can access the functions to test
         if module_name.endswith('.py'):
             module_name = module_name[:-3]
         content = f"from {module_name} import *\n" + content
         try:
+            # creates and runs the testfile
             with open(test_filename, "w") as file:
                 file.write(content)
             remove_triple_backticks(test_filename)
@@ -177,10 +186,12 @@ def create_test_file(content, original_filename):
                 print(f"Error running '{test_filename}': {result.stderr}")
         except Exception as e:
             print(f"Error: {e}")
+    # if the code is in c++: 
     elif original_filename.endswith('.cpp'):
         test_filename = "test_run.cpp"
         content = f'#define CATCH_CONFIG_MAIN\n#include <catch2/catch_test_macros.hpp>\n#include "codefile.cpp"\n' + content
         try:
+            # runs the external functions
             with open(test_filename, "w") as file:
                 file.write(content)
             remove_triple_backticks(test_filename)
