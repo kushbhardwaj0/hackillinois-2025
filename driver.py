@@ -40,7 +40,7 @@ def create_test_file(content, module_name, filename="test_run.py"):
 
 
 def testcase_generator(text):
-    API_KEY = "AIzaSyB4oJ20j07Y8PHBSU0WFqpTJmY-QJKl88M"
+
     genai.configure(api_key=API_KEY)
     
     generation_config = genai.types.GenerationConfig(
