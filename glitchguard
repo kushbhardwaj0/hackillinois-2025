@@ -64,7 +64,7 @@ def file_extractor():
 
 # Uses the Gemini AI API to generate test cases for the given code.
 def testcase_generator(text, filename):
-    genai.configure(api_key="")
+    genai.configure(api_key="AIzaSyB4oJ20j07Y8PHBSU0WFqpTJmY-QJKl88M")
     # Set generation parameters to keep output consistent and useful.
     generation_config = genai.types.GenerationConfig(temperature=0.1)
     if filename.endswith('.py'):
@@ -160,7 +160,7 @@ def build_and_run_cpp_tests():
     # running the testfile
     run_result = subprocess.run(["./build/tests"], capture_output=True, text=True)
     if run_result.returncode != 0:
-        print(f"Error running tests: {run_result.stderr}")
+        print(f"Error running tests: {run_result.stdout}")
     else:
         print(run_result.stdout)
 
